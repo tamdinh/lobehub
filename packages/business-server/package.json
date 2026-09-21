@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "exports": {
-    "./*": "./src/*.ts"
+    "./*": "./src/*.ts",
+    "./*/*": "./src/*/*.ts"
   },
   "dependencies": {
     "@lobechat/agent-gateway-client": "workspace:*",
