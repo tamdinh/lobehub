@@ -173,8 +173,12 @@ describe('SaaS Background Operations (Mission 4)', () => {
       const signalBus = new AgentSignalBus();
       const emittedSignals: any[] = [];
 
-      signalBus.subscribe('workflow.started', 'ws_pro_1', (sig) => emittedSignals.push(sig));
-      signalBus.subscribe('workflow.completed', 'ws_pro_1', (sig) => emittedSignals.push(sig));
+      signalBus.subscribe('workflow.started', 'ws_pro_1', (sig) => {
+        emittedSignals.push(sig);
+      });
+      signalBus.subscribe('workflow.completed', 'ws_pro_1', (sig) => {
+        emittedSignals.push(sig);
+      });
 
       const mockEntitlements: any = {
         checkModelAccess: vi.fn(async () => ({ allowed: true })),

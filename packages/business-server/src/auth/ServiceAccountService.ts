@@ -1,5 +1,4 @@
-import { getServerDB } from '@lobechat/database';
-import type { LobeChatDatabase } from '@lobechat/database/type';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import type { ActorContext, SecurityContext } from '@lobechat/types';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 

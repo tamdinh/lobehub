@@ -1,7 +1,6 @@
-import { getServerDB } from '@lobechat/database';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import { AgentModel } from '@lobechat/database/models/agent';
 import { AgentOperationModel } from '@lobechat/database/models/agentOperation';
-import type { LobeChatDatabase } from '@lobechat/database/type';
 import type { SecurityContext } from '@lobechat/types';
 import { TRPCError } from '@trpc/server';
 import { randomUUID } from 'node:crypto';
@@ -83,7 +82,7 @@ export class AgentService {
     );
 
     const agent = await this.db.query.agents.findFirst({
-      where: (t, { and, eq, isNull, or }) => {
+      where: (t: any, { and, eq, isNull, or }: any) => {
         if (context.workspaceId) {
           // In workspace mode, must belong to current workspace or be system agent
           return and(eq(t.id, agentId), or(eq(t.workspaceId, context.workspaceId), isNull(t.workspaceId)));

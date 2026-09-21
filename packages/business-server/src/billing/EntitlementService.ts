@@ -1,11 +1,10 @@
-import { getServerDB } from '@lobechat/database';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import {
   type SaasPlanItem,
   saasPlans,
   type SaasSubscriptionItem,
   saasSubscriptions,
 } from '@lobechat/database/schemas';
-import type { LobeChatDatabase } from '@lobechat/database/type';
 import type { ModelTier, TenantQuotaCheckResult } from '@lobechat/types';
 import { and, desc, eq } from 'drizzle-orm';
 
@@ -13,6 +12,7 @@ import { UsageLedgerService } from '../usage/UsageLedgerService';
 
 export const DEFAULT_PLANS: Record<string, SaasPlanItem> = {
   enterprise: {
+    accessedAt: new Date(),
     backgroundAgents: true,
     createdAt: new Date(),
     description: 'Custom limits, dedicated support, and enterprise models',
@@ -26,6 +26,7 @@ export const DEFAULT_PLANS: Record<string, SaasPlanItem> = {
     updatedAt: new Date(),
   },
   free: {
+    accessedAt: new Date(),
     backgroundAgents: false,
     createdAt: new Date(),
     description: 'Free tier for personal exploration',
@@ -39,6 +40,7 @@ export const DEFAULT_PLANS: Record<string, SaasPlanItem> = {
     updatedAt: new Date(),
   },
   pro: {
+    accessedAt: new Date(),
     backgroundAgents: true,
     createdAt: new Date(),
     description: 'Professional tier with premium models and increased limits',

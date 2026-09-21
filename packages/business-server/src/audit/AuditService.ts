@@ -1,10 +1,9 @@
-import { getServerDB } from '@lobechat/database';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import {
   type NewWorkspaceAuditLog,
   workspaceAuditLogs,
   type WorkspaceAuditLogItem,
 } from '@lobechat/database/schemas';
-import type { LobeChatDatabase } from '@lobechat/database/type';
 import type { ActorContext } from '@lobechat/types';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 

@@ -1,10 +1,9 @@
-import { getServerDB } from '@lobechat/database';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import {
   type NewSaasUsageEvent,
   saasUsageEvents,
   type SaasUsageEventItem,
 } from '@lobechat/database/schemas';
-import type { LobeChatDatabase } from '@lobechat/database/type';
 import { and, eq, gte, lte, sql } from 'drizzle-orm';
 
 export interface UsageSummary {

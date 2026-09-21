@@ -1,6 +1,5 @@
-import { getServerDB } from '@lobechat/database';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import { RbacModel } from '@lobechat/database/models/rbac';
-import type { LobeChatDatabase } from '@lobechat/database/type';
 import { TRPCError } from '@trpc/server';
 
 import { trpc } from '@/libs/trpc/lambda/init';

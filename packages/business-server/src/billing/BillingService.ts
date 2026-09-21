@@ -1,9 +1,8 @@
-import { getServerDB } from '@lobechat/database';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import {
   type SaasSubscriptionItem,
   saasSubscriptions,
 } from '@lobechat/database/schemas';
-import type { LobeChatDatabase } from '@lobechat/database/type';
 import type { ActorContext } from '@lobechat/types';
 import { and, desc, eq } from 'drizzle-orm';
 

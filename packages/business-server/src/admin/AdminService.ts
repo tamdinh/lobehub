@@ -1,11 +1,10 @@
-import { getServerDB } from '@lobechat/database';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import {
   saasUsageEvents,
   users,
   workspaceAuditLogs,
   workspaces,
 } from '@lobechat/database/schemas';
-import type { LobeChatDatabase } from '@lobechat/database/type';
 import type {
   ActorContext,
   AdminAgentRetryParams,

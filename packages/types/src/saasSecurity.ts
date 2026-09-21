@@ -26,6 +26,26 @@ export interface ActorContext {
    * e.g., 'BETTER_AUTH' | 'OIDC' | 'API_KEY' | 'SYSTEM' | 'INTERNAL_JWT'
    */
   authSource: string;
+
+  /**
+   * Organization scope if applicable.
+   */
+  organizationId?: string;
+
+  /**
+   * Workspace scope if applicable.
+   */
+  workspaceId?: string;
+
+  /**
+   * List of permissions granted directly to the actor.
+   */
+  permissions?: string[];
+
+  /**
+   * List of roles assigned to the actor.
+   */
+  roles?: string[];
 }
 
 export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';

@@ -1,6 +1,5 @@
-import { getServerDB } from '@lobechat/database';
+import { getServerDB, type LobeChatDatabase } from '@lobechat/database';
 import { getActiveWorkspaceMembershipRole } from '@lobechat/database/models/workspace';
-import type { LobeChatDatabase } from '@lobechat/database/type';
 import { TRPCError } from '@trpc/server';
 
 import { authedProcedure } from '@/libs/trpc/lambda';
@@ -23,7 +22,7 @@ export const cloudWorkspaceAuth = trpc.middleware(async ({ ctx, next }) => {
       const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
       const ws = await db.query.workspaces.findFirst({
         columns: { slug: true },
-        where: (t, { eq }) => eq(t.id, ctx.workspaceId!),
+        where: (t: any, { eq }: any) => eq(t.id, ctx.workspaceId!),
       });
       if (ws) {
         workspaceSlug = ws.slug;

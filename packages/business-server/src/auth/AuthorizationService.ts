@@ -13,7 +13,7 @@ import {
 } from '@lobechat/database/models/workspace';
 import { RbacModel } from '@lobechat/database/models/rbac';
 import { UserModel } from '@lobechat/database/models/user';
-import type { LobeChatDatabase } from '@lobechat/database/type';
+import type { LobeChatDatabase } from '@lobechat/database';
 import type { ActorContext, ActorType, SecurityContext, WorkspaceRole } from '@lobechat/types';
 import { TRPCError } from '@trpc/server';
 
@@ -67,7 +67,7 @@ export class AuthorizationService {
     // 1. Verify actor exists and is not banned
     if (actor.actorType === 'USER') {
       const user = await this.db.query.users.findFirst({
-        where: (t, { eq }) => eq(t.id, actor.actorId),
+        where: (t: any, { eq }: any) => eq(t.id, actor.actorId),
       });
       if (!user) {
         throw new TRPCError({
@@ -89,7 +89,7 @@ export class AuthorizationService {
     // 2. If workspaceId is provided, enforce workspace tenant boundary
     if (workspaceId) {
       const workspace = await this.db.query.workspaces.findFirst({
-        where: (t, { eq }) => eq(t.id, workspaceId),
+        where: (t: any, { eq }: any) => eq(t.id, workspaceId),
       });
 
       if (!workspace) {

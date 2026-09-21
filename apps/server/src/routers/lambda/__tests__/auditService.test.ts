@@ -114,8 +114,9 @@ describe('SaaS Correlated Audit Service', () => {
       },
     });
 
-    expect(event.metadata.result).toBe('DENIED');
-    expect(event.metadata.denialReason).toBe('INSUFFICIENT_PERMISSIONS');
+    const meta = event.metadata as Record<string, any>;
+    expect(meta.result).toBe('DENIED');
+    expect(meta.denialReason).toBe('INSUFFICIENT_PERMISSIONS');
     expect(event.userId).toBe('usr_attacker');
   });
 
