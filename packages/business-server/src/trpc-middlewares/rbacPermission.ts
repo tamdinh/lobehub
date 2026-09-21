@@ -1,28 +1,113 @@
+import { getServerDB } from '@lobechat/database';
+import { RbacModel } from '@lobechat/database/models/rbac';
+import type { LobeChatDatabase } from '@lobechat/database/type';
+import { TRPCError } from '@trpc/server';
+
 import { trpc } from '@/libs/trpc/lambda/init';
 
 /**
- * No-op stub for OSS builds. Cloud overrides this entire module via tsconfig
- * path priority and provides the real workspace-RBAC-aware implementations
- * (see `src/business/server/trpc-middlewares/rbacPermission.ts` in the cloud
- * repo). In OSS there is no workspace concept worth gating, so every gate
- * passes through.
- *
- * Keep the export shape identical to the cloud version so router code that
- * imports from `@/business/server/trpc-middlewares/rbacPermission` compiles
- * and runs in both environments without conditional imports.
+ * Authoritative RBAC permission middleware for SaaS platform.
+ * Verifies that the caller holds the exact permission code in the workspace or globally.
  */
-export const withRbacPermission = (_code: string) => trpc.middleware(async (opts) => opts.next());
+export const withRbacPermission = (code: string) =>
+  trpc.middleware(async ({ ctx, next }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+    }
 
-export const withAnyRbacPermission = (_codes: string[]) =>
-  trpc.middleware(async (opts) => opts.next());
+    const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
+    const rbac = new RbacModel(db, ctx.userId);
+    const hasPerm = await rbac.hasPermission(code, {
+      workspaceId: ctx.workspaceId ?? undefined,
+    });
 
-export const withAllRbacPermissions = (_codes: string[]) =>
-  trpc.middleware(async (opts) => opts.next());
+    if (!hasPerm) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: `PERMISSION_DENIED: ${code}`,
+      });
+    }
+
+    return next();
+  });
 
 /**
- * Sugar for the "member-or-owner" gate — in cloud this fans the action code
- * out into the `:all | :owner` scope pair so a member with the `:owner` grant
- * passes alongside an owner with the `:all` grant. OSS no-op.
+ * Checks whether the caller holds any of the provided permission codes (OR logic).
  */
-export const withScopedPermission = (_action: string) =>
-  trpc.middleware(async (opts) => opts.next());
+export const withAnyRbacPermission = (codes: string[]) =>
+  trpc.middleware(async ({ ctx, next }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+    }
+
+    const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
+    const rbac = new RbacModel(db, ctx.userId);
+    const hasPerm = await rbac.hasAnyPermission(codes, {
+      workspaceId: ctx.workspaceId ?? undefined,
+    });
+
+    if (!hasPerm) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: `PERMISSION_DENIED: required one of [${codes.join(', ')}]`,
+      });
+    }
+
+    return next();
+  });
+
+/**
+ * Checks whether the caller holds all of the provided permission codes (AND logic).
+ */
+export const withAllRbacPermissions = (codes: string[]) =>
+  trpc.middleware(async ({ ctx, next }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+    }
+
+    const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
+    const rbac = new RbacModel(db, ctx.userId);
+
+    for (const code of codes) {
+      const hasPerm = await rbac.hasPermission(code, {
+        workspaceId: ctx.workspaceId ?? undefined,
+      });
+
+      if (!hasPerm) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: `PERMISSION_DENIED: missing ${code}`,
+        });
+      }
+    }
+
+    return next();
+  });
+
+/**
+ * Sugar for the "member-or-owner" gate: fans the action code out into
+ * the `:all | :owner` scope pair so a member with the `:owner` grant
+ * passes alongside an owner/admin with the `:all` grant.
+ */
+export const withScopedPermission = (action: string) =>
+  trpc.middleware(async ({ ctx, next }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+    }
+
+    const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
+    const rbac = new RbacModel(db, ctx.userId);
+    const candidates = [action, `${action}:all`, `${action}:owner`];
+    const hasPerm = await rbac.hasAnyPermission(candidates, {
+      workspaceId: ctx.workspaceId ?? undefined,
+    });
+
+    if (!hasPerm) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: `PERMISSION_DENIED: requires permission for ${action}`,
+      });
+    }
+
+    return next();
+  });
