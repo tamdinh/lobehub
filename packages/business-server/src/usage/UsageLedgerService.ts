@@ -114,6 +114,16 @@ export class UsageLedgerService {
       conditions.push(lte(saasUsageEvents.createdAt, params.endDate));
     }
 
+    if (!this.db?.select) {
+      return {
+        netCostMicros: 0,
+        netInputTokens: 0,
+        netOutputTokens: 0,
+        netTotalTokens: 0,
+        totalEvents: 0,
+      };
+    }
+
     const [result] = await this.db
       .select({
         count: sql<number>`count(*)::int`,
@@ -131,6 +141,117 @@ export class UsageLedgerService {
       netOutputTokens: Number(result?.netOutputTokens ?? 0),
       netTotalTokens: Number(result?.netTotalTokens ?? 0),
       totalEvents: Number(result?.count ?? 0),
+    };
+  };
+
+  /**
+   * Grants immutable credits to a tenant (promotional, prepaid, or subscription-allocated).
+   */
+  grantCredits = async (params: {
+    actorId: string;
+    amountMicros: number;
+    expiresAt?: Date;
+    metadata?: Record<string, unknown>;
+    organizationId?: string;
+    reason: string;
+    workspaceId: string;
+  }): Promise<SaasUsageEventItem> => {
+    if (params.amountMicros <= 0) {
+      throw new Error('INVALID_CREDIT_AMOUNT: Grant amount must be greater than zero.');
+    }
+
+    const [record] = await this.db
+      .insert(saasUsageEvents)
+      .values({
+        actorId: params.actorId,
+        creditMicros: params.amountMicros,
+        eventType: 'CREDIT_GRANT',
+        expiresAt: params.expiresAt,
+        metadata: { ...params.metadata, reason: params.reason },
+        organizationId: params.organizationId,
+        reason: params.reason,
+        workspaceId: params.workspaceId,
+      })
+      .returning();
+
+    return record;
+  };
+
+  /**
+   * Consumes immutable credits from a tenant's balance.
+   */
+  consumeCredits = async (params: {
+    actorId: string;
+    amountMicros: number;
+    metadata?: Record<string, unknown>;
+    reason: string;
+    runId?: string;
+    workspaceId: string;
+  }): Promise<SaasUsageEventItem> => {
+    if (params.amountMicros <= 0) {
+      throw new Error('INVALID_CREDIT_AMOUNT: Consumption amount must be greater than zero.');
+    }
+
+    const balance = await this.getCreditBalance(params.workspaceId);
+    if (balance.netBalanceMicros < params.amountMicros) {
+      throw new Error(
+        `INSUFFICIENT_CREDITS: Required ${params.amountMicros} micros but available balance is ${balance.netBalanceMicros} micros.`,
+      );
+    }
+
+    const [record] = await this.db
+      .insert(saasUsageEvents)
+      .values({
+        actorId: params.actorId,
+        creditMicros: params.amountMicros,
+        eventType: 'CREDIT_CONSUMPTION',
+        metadata: { ...params.metadata, reason: params.reason },
+        reason: params.reason,
+        runId: params.runId,
+        workspaceId: params.workspaceId,
+      })
+      .returning();
+
+    return record;
+  };
+
+  /**
+   * Computes real-time credit balance from the immutable ledger.
+   */
+  getCreditBalance = async (
+    workspaceId: string,
+  ): Promise<{ netBalanceMicros: number; totalConsumedMicros: number; totalGrantedMicros: number }> => {
+    if (!this.db?.query?.saasUsageEvents?.findMany) {
+      return { netBalanceMicros: 0, totalConsumedMicros: 0, totalGrantedMicros: 0 };
+    }
+
+    const events = await this.db.query.saasUsageEvents.findMany({
+      where: and(
+        eq(saasUsageEvents.workspaceId, workspaceId),
+        sql`${saasUsageEvents.eventType} IN ('CREDIT_GRANT', 'CREDIT_CONSUMPTION')`,
+      ),
+    });
+
+    const now = new Date();
+    let totalGrantedMicros = 0;
+    let totalConsumedMicros = 0;
+
+    for (const ev of events) {
+      if (ev.eventType === 'CREDIT_GRANT') {
+        // Exclude expired grants if expiration date is past
+        if (ev.expiresAt && new Date(ev.expiresAt) < now) {
+          continue;
+        }
+        totalGrantedMicros += ev.creditMicros || 0;
+      } else if (ev.eventType === 'CREDIT_CONSUMPTION') {
+        totalConsumedMicros += ev.creditMicros || 0;
+      }
+    }
+
+    return {
+      netBalanceMicros: Math.max(0, totalGrantedMicros - totalConsumedMicros),
+      totalConsumedMicros,
+      totalGrantedMicros,
     };
   };
 }

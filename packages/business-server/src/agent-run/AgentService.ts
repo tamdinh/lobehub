@@ -7,6 +7,8 @@ import { TRPCError } from '@trpc/server';
 import { randomUUID } from 'node:crypto';
 
 import { AuthorizationService } from '../auth/AuthorizationService';
+import { EntitlementService } from '../billing/EntitlementService';
+import { ModelCatalogService } from '../catalog/ModelCatalogService';
 
 export interface ExecuteAgentOptions {
   agentId: string;
@@ -96,6 +98,35 @@ export class AgentService {
         code: 'FORBIDDEN',
         message: 'AGENT_ACCESS_DENIED: Agent does not exist in the active tenant scope',
       });
+    }
+
+    // 2.5 Commercial Entitlements & Quota Gating
+    if (context.workspaceId) {
+      const entitlementService = new EntitlementService(this.db);
+      const catalog = new ModelCatalogService();
+
+      // Check model tier entitlements if model is specified
+      if (agent.model) {
+        const commercialModel = catalog.getModel(agent.model);
+        const tier = commercialModel?.tier || 'standard';
+        const modelCheck = await entitlementService.checkModelAccess(context.workspaceId, tier);
+
+        if (!modelCheck.allowed) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: modelCheck.reason || 'PLAN_UPGRADE_REQUIRED: Model access restricted by plan',
+          });
+        }
+      }
+
+      // Check token quota & prepaid credit balance
+      const quotaCheck = await entitlementService.checkTokenQuota(context.workspaceId, 0);
+      if (!quotaCheck.allowed) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: quotaCheck.reason || 'TOKEN_QUOTA_EXCEEDED: Workspace quota exceeded',
+        });
+      }
     }
 
     // 3. Allocate Run ID and correlate with request/trace context

@@ -3,7 +3,12 @@ import { bigint, index, integer, jsonb, pgTable, text, uuid } from 'drizzle-orm/
 import { createdAt, timestamptz } from './_helpers';
 import { workspaces } from './workspace';
 
-export type UsageEventType = 'USAGE' | 'ADJUSTMENT' | 'REVERSAL';
+export type UsageEventType =
+  | 'USAGE'
+  | 'ADJUSTMENT'
+  | 'REVERSAL'
+  | 'CREDIT_GRANT'
+  | 'CREDIT_CONSUMPTION';
 
 /**
  * Immutable Usage Ledger
@@ -48,6 +53,11 @@ export const saasUsageEvents = pgTable(
 
     // Cost in micro-currency (1 USD = 1,000,000 micros)
     costMicros: bigint('cost_micros', { mode: 'number' }).notNull().default(0),
+
+    // Credit accounting (positive for GRANT, positive for CONSUMPTION amount)
+    creditMicros: bigint('credit_micros', { mode: 'number' }).notNull().default(0),
+    reason: text('reason'),
+    expiresAt: timestamptz('expires_at'),
 
     // Context metadata
     metadata: jsonb('metadata').default({}),

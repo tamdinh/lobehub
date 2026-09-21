@@ -78,3 +78,4 @@ export * from './userMemory';
 export * from './util';
 export * from './zustand';
 export * from './saasSecurity';
+export * from './commercialModel';
