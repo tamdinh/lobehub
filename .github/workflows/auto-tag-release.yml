@@ -1,6 +1,7 @@
 name: Auto Tag Release
 
 permissions:
+  actions: write
   contents: write
 
 on:
@@ -157,3 +158,8 @@ jobs:
           else
             echo "ℹ️ Result: Not a release/patch PR, no tag created"
           fi
+
+      - name: Sync main to canary
+        run: gh workflow run sync-main-to-canary.yaml --ref main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
