@@ -24,6 +24,16 @@ vi.mock('@/server/services/resourcePermission', () => ({
   assertCanEditResource: vi.fn(),
 }));
 
+const mockHasPermission = vi.fn();
+const mockHasAnyPermission = vi.fn();
+
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: class {
+    hasPermission = (...args: unknown[]) => mockHasPermission(...args);
+    hasAnyPermission = (...args: unknown[]) => mockHasAnyPermission(...args);
+  },
+}));
+
 describe('sessionRouter', () => {
   const userId = 'testUserId';
   let sessionModelMock: any;
@@ -31,6 +41,8 @@ describe('sessionRouter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasPermission.mockResolvedValue(true);
+    mockHasAnyPermission.mockResolvedValue(true);
     vi.mocked(assertCanEditResource).mockResolvedValue();
 
     sessionModelMock = {

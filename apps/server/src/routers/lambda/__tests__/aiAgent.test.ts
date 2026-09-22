@@ -92,6 +92,16 @@ vi.mock('@/server/services/resourcePermission', () => ({
   getResourceMeta: vi.fn(),
 }));
 
+const mockHasPermission = vi.fn();
+const mockHasAnyPermission = vi.fn();
+
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: class {
+    hasPermission = (...args: unknown[]) => mockHasPermission(...args);
+    hasAnyPermission = (...args: unknown[]) => mockHasAnyPermission(...args);
+  },
+}));
+
 // The user-hub token is a real RS256 signature in production; the integration
 // DB has no JWKS_KEY, so pin the signer and assert the subject it is asked for.
 const mockSignUserJWT = vi.fn();
@@ -130,6 +140,8 @@ describe('AI Agent Router Integration Tests', () => {
   let testSessionId: string;
 
   beforeEach(async () => {
+    mockHasPermission.mockResolvedValue(true);
+    mockHasAnyPermission.mockResolvedValue(true);
     serverDB = await getTestDB();
     testDB = serverDB;
     userId = await createTestUser(serverDB);

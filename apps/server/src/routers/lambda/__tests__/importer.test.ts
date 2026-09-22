@@ -39,6 +39,37 @@ vi.mock('@/server/services/fileUpload', () => ({
   }),
 }));
 
+const { mockGetServerDB, mockHasPermission, mockHasAnyPermission } = vi.hoisted(() => ({
+  mockGetServerDB: vi.fn(),
+  mockHasAnyPermission: vi.fn(),
+  mockHasPermission: vi.fn(),
+}));
+
+const mockServerDB = {
+  delete: vi.fn(),
+  insert: vi.fn(),
+  select: vi.fn(),
+  update: vi.fn(),
+};
+
+const selectBuilder = {
+  from: vi.fn().mockReturnThis(),
+  innerJoin: vi.fn().mockReturnThis(),
+  limit: vi.fn().mockResolvedValue([]),
+  where: vi.fn().mockReturnThis(),
+};
+
+vi.mock('@/database/core/db-adaptor', () => ({
+  getServerDB: mockGetServerDB,
+}));
+
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: class {
+    hasPermission = (...args: unknown[]) => mockHasPermission(...args);
+    hasAnyPermission = (...args: unknown[]) => mockHasAnyPermission(...args);
+  },
+}));
+
 describe('importerRouter', () => {
   const mockFileContent = JSON.stringify({
     version: 1,
@@ -66,6 +97,10 @@ describe('importerRouter', () => {
   };
 
   beforeEach(() => {
+    mockGetServerDB.mockResolvedValue(mockServerDB);
+    mockServerDB.select.mockReturnValue(selectBuilder);
+    mockHasPermission.mockResolvedValue(true);
+    mockHasAnyPermission.mockResolvedValue(true);
     mockAssertActiveOrLegacy.mockResolvedValue(undefined);
     mockGetFileContent.mockResolvedValue(mockFileContent);
     mockImportData.mockResolvedValue(mockImportResult);
@@ -77,8 +112,8 @@ describe('importerRouter', () => {
   });
 
   const ctx = {
+    serverDB: mockServerDB as any,
     userId: 'user-1',
-    serverDB: {} as any,
   };
 
   describe('importByFile', () => {

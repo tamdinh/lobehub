@@ -7,9 +7,18 @@
   "editor.formatOnSave": true,
   // don't show errors, but fix when save and git pre commit
   "eslint.rules.customizations": [
-    { "rule": "simple-import-sort/exports", "severity": "off" },
-    { "rule": "perfectionist/sort-interfaces", "severity": "off" },
-    { "rule": "simple-import-sort/imports", "severity": "off" }
+    {
+      "rule": "simple-import-sort/exports",
+      "severity": "off"
+    },
+    {
+      "rule": "perfectionist/sort-interfaces",
+      "severity": "off"
+    },
+    {
+      "rule": "simple-import-sort/imports",
+      "severity": "off"
+    }
   ],
   "eslint.validate": [
     "json",
@@ -61,6 +70,7 @@
     // make stylelint work with tsx antd-style css template string
     "typescriptreact"
   ],
+  "typescript.tsdk": "node_modules\\typescript\\lib",
   "vitest.disableWorkspaceWarning": true,
   "workbench.editor.customLabels.patterns": {
     "**/app/**/[[]*[]]/[[]*[]]/page.tsx": "${dirname(2)}/${dirname(1)}/${dirname} • page component",

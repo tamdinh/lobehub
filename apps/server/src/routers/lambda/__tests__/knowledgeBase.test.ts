@@ -90,6 +90,16 @@ vi.mock('@/database/models/knowledgeBase', () => ({
   }),
 }));
 
+const mockHasPermission = vi.fn();
+const mockHasAnyPermission = vi.fn();
+
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: class {
+    hasPermission = (...args: unknown[]) => mockHasPermission(...args);
+    hasAnyPermission = (...args: unknown[]) => mockHasAnyPermission(...args);
+  },
+}));
+
 describe('knowledgeBaseRouter', () => {
   const ctx = {
     serverDB: {},
@@ -102,6 +112,8 @@ describe('knowledgeBaseRouter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasPermission.mockResolvedValue(true);
+    mockHasAnyPermission.mockResolvedValue(true);
     routerMocks.assertContentsNotInRestrictedKnowledgeBase.mockResolvedValue(undefined);
     routerMocks.assertKnowledgeBaseBrowsable.mockResolvedValue(undefined);
     routerMocks.assertCanPerformResourceAction.mockResolvedValue(undefined);

@@ -29,6 +29,7 @@ const {
   mockGetServerDB,
   mockGetServerFeatureFlagsStateFromRuntimeConfig,
   mockHasAnyPermission,
+  mockHasPermission,
   mockInitWithEnvKey,
   mockInvalidateMessengerBot,
   mockIsMessengerPlatformEnabled,
@@ -67,6 +68,7 @@ const {
   mockGetServerDB: vi.fn(),
   mockGetServerFeatureFlagsStateFromRuntimeConfig: vi.fn(),
   mockHasAnyPermission: vi.fn(),
+  mockHasPermission: vi.fn(),
   mockInitWithEnvKey: vi.fn(),
   mockInvalidateMessengerBot: vi.fn(),
   mockIsMessengerPlatformEnabled: vi.fn(),
@@ -125,6 +127,7 @@ vi.mock('@/database/models/workspace', () => ({
 
 vi.mock('@/database/models/rbac', () => ({
   RbacModel: class {
+    hasPermission = (...args: any[]) => mockHasPermission(...args);
     hasAnyPermission = (...args: any[]) => mockHasAnyPermission(...args);
   },
 }));
@@ -287,6 +290,11 @@ const createAgentListBuilder = <T>(result: T) => {
 
   return builder;
 };
+
+beforeEach(() => {
+  mockHasAnyPermission.mockResolvedValue(true);
+  mockHasPermission.mockResolvedValue(true);
+});
 
 describe('messengerRouter.listMyInstallations', () => {
   const serverDB = { kind: 'server-db' };
@@ -597,6 +605,8 @@ describe('messengerRouter.pollWechatQrSession', () => {
 describe('messengerRouter.uninstallInstallation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasAnyPermission.mockResolvedValue(true);
+    mockHasPermission.mockResolvedValue(true);
     mockGetServerDB.mockResolvedValue({ kind: 'server-db' });
     mockInitWithEnvKey.mockResolvedValue({ kind: 'gatekeeper' });
   });
