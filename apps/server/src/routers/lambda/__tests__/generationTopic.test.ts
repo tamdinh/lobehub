@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GenerationTopicModel } from '@/database/models/generationTopic';
 import { type GenerationTopicItem } from '@/database/schemas/generation';
@@ -7,6 +7,29 @@ import { GenerationService } from '@/server/services/generation';
 
 import { generationTopicRouter } from '../generationTopic';
 
+const { mockHasPermission, mockHasAnyPermission } = vi.hoisted(() => ({
+  mockHasPermission: vi.fn().mockResolvedValue(true),
+  mockHasAnyPermission: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock('@lobechat/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
+}));
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
+}));
 vi.mock('@/database/models/generationTopic');
 vi.mock('@/server/services/file');
 vi.mock('@/server/services/generation');
@@ -19,6 +42,8 @@ describe('generationTopicRouter', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockHasPermission.mockResolvedValue(true);
+    mockHasAnyPermission.mockResolvedValue(true);
   });
 
   it('should create a new topic', async () => {

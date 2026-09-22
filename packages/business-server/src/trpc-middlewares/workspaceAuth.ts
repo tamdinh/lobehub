@@ -121,14 +121,7 @@ export const requireWorkspaceRoleWhenScoped = (minRole: WorkspaceRole) =>
     });
   });
 
-const requireWorkspaceId = trpc.middleware(async ({ ctx, next }) => {
-  if (!ctx.workspaceId) {
-    throw new TRPCError({ code: 'BAD_REQUEST', message: 'workspaceId is required' });
-  }
-  return next({ ctx: { workspaceId: ctx.workspaceId } });
-});
-
-export const wsProcedure = authedProcedure.use(requireWorkspaceRole('member'));
+export const wsProcedure = authedProcedure.use(requireWorkspaceRole('viewer'));
 
 export const wsMemberProcedure = authedProcedure.use(requireWorkspaceRoleWhenScoped('member'));
 

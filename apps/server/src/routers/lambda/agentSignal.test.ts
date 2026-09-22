@@ -11,6 +11,28 @@ import { listAgentSignalReceipts } from '@/server/services/agentSignal/services/
 import { agentSignalRouter } from './agentSignal';
 
 const mockServerDB = vi.hoisted(() => ({}));
+const mockHasPermission = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+const mockHasAnyPermission = vi.hoisted(() => vi.fn().mockResolvedValue(true));
+
+vi.mock('@lobechat/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
+}));
+
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
+}));
 
 vi.mock('@/database/core/db-adaptor', () => ({
   getServerDB: vi.fn().mockResolvedValue(mockServerDB),
@@ -62,6 +84,8 @@ describe('agentSignalRouter', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    mockHasPermission.mockResolvedValue(true);
+    mockHasAnyPermission.mockResolvedValue(true);
     ctx = await createContextInner({ userId: 'user-1', workspaceId: 'workspace-1' });
     router = createCaller(ctx);
   });

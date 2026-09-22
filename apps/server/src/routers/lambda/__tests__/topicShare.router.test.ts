@@ -40,9 +40,23 @@ vi.mock('@/database/models/workspaceAuditLog', () => ({
 }));
 
 const mockHasPermission = vi.fn();
+const mockHasAnyPermission = vi.fn();
+vi.mock('@lobechat/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
+}));
 vi.mock('@/database/models/rbac', () => ({
   RbacModel: vi.fn(function () {
-    return { hasPermission: mockHasPermission };
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
   }),
 }));
 
@@ -73,6 +87,7 @@ describe('topic share management gate', () => {
     mockShareUpdateVisibility.mockResolvedValue({ id: 'share-1', topicId, visibility: 'link' });
     mockAssertCanUseTopicTargets.mockResolvedValue(RESOLVED_CONVERSATION);
     mockHasPermission.mockResolvedValue(false);
+    mockHasAnyPermission.mockResolvedValue(true);
   });
 
   describe('enableSharing', () => {

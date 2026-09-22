@@ -10,6 +10,8 @@ const {
   mockCreateVideo,
   mockFindUserById,
   mockGenerationTopicFindById,
+  mockHasAnyPermission,
+  mockHasPermission,
   mockIsLobeHubModelAvailable,
   mockProcessBackgroundVideoPolling,
   mockResolveBusinessModelMapping,
@@ -25,6 +27,8 @@ const {
   });
   const mockFindUserById = vi.fn();
   const mockGenerationTopicFindById = vi.fn();
+  const mockHasPermission = vi.fn().mockResolvedValue(true);
+  const mockHasAnyPermission = vi.fn().mockResolvedValue(true);
   const mockIsLobeHubModelAvailable = vi.fn();
   const mockProcessBackgroundVideoPolling = vi.fn().mockResolvedValue(undefined);
   const mockResolveBusinessModelMapping = vi.fn();
@@ -32,6 +36,8 @@ const {
     mockCreateVideo,
     mockFindUserById,
     mockGenerationTopicFindById,
+    mockHasAnyPermission,
+    mockHasPermission,
     mockIsLobeHubModelAvailable,
     mockProcessBackgroundVideoPolling,
     mockResolveBusinessModelMapping,
@@ -43,6 +49,24 @@ const {
 
 // ---- module-level mocks ----
 
+vi.mock('@lobechat/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
+}));
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
+}));
 vi.mock('@/database/models/asyncTask');
 vi.mock('@/database/models/generationTopic', () => ({
   GenerationTopicModel: vi.fn(function () {
@@ -182,6 +206,8 @@ describe('videoRouter', () => {
     mockFindUserById.mockResolvedValue({ email: 'user@example.com' });
     mockGenerationTopicFindById.mockResolvedValue({ id: 'topic-1' });
     mockIsLobeHubModelAvailable.mockResolvedValue(true);
+    mockHasPermission.mockResolvedValue(true);
+    mockHasAnyPermission.mockResolvedValue(true);
   });
 
   describe('createVideo - async strategy routing', () => {

@@ -1,5 +1,7 @@
+import type * as drizzleOrm from 'drizzle-orm';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type * as databaseSchemas from '@/database/schemas';
 import { AsyncTaskStatus, AsyncTaskType } from '@/types/asyncTask';
 
 import { imageRouter } from './index';
@@ -18,6 +20,8 @@ const {
   mockInsertValues,
   mockIsLobeHubModelAvailable,
   mockResolveBusinessModelMapping,
+  mockHasPermission,
+  mockHasAnyPermission,
 } = vi.hoisted(() => ({
   mockServerDB: {
     transaction: vi.fn(),
@@ -33,6 +37,29 @@ const {
   mockInsertValues: [] as unknown[],
   mockIsLobeHubModelAvailable: vi.fn(),
   mockResolveBusinessModelMapping: vi.fn(),
+  mockHasPermission: vi.fn().mockResolvedValue(true),
+  mockHasAnyPermission: vi.fn().mockResolvedValue(true),
+}));
+
+// Mock RbacModel
+vi.mock('@lobechat/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
+}));
+
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: mockHasAnyPermission,
+      hasPermission: mockHasPermission,
+    };
+  }),
 }));
 
 // Mock debug
@@ -116,21 +143,32 @@ vi.mock('@/server/routers/async/caller', () => ({
 }));
 
 // Mock drizzle-orm
-vi.mock('drizzle-orm', () => ({
-  and: vi.fn(function (...args) {
-    return args;
-  }),
-  eq: vi.fn(function (a, b) {
-    return { a, b };
-  }),
-}));
+vi.mock('drizzle-orm', async (importOriginal) => {
+  const actual = await importOriginal<typeof drizzleOrm>();
+
+  return {
+    ...actual,
+    and: vi.fn(function (...args) {
+      return args;
+    }),
+    eq: vi.fn(function (a, b) {
+      return { a, b };
+    }),
+  };
+});
 
 // Mock database schemas
-vi.mock('@/database/schemas', () => ({
-  asyncTasks: { id: 'asyncTasks.id', userId: 'asyncTasks.userId' },
-  generationBatches: { id: 'generationBatches.id' },
-  generations: { id: 'generations.id', userId: 'generations.userId' },
-}));
+vi.mock('@/database/schemas', async (importOriginal) => {
+  const actual = await importOriginal<typeof databaseSchemas>();
+
+  return {
+    ...actual,
+    asyncTasks: { id: 'asyncTasks.id', userId: 'asyncTasks.userId' },
+    generationBatches: { id: 'generationBatches.id' },
+    generations: { id: 'generations.id', userId: 'generations.userId' },
+    messagePlugins: { id: 'messagePlugins.id' },
+  };
+});
 
 // Mock seed generator
 vi.mock('@/utils/number', () => ({
@@ -164,6 +202,8 @@ describe('imageRouter', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockInsertValues.length = 0;
+    mockHasPermission.mockResolvedValue(true);
+    mockHasAnyPermission.mockResolvedValue(true);
 
     // Default mock implementations
     mockResolveBusinessModelMapping.mockImplementation(
