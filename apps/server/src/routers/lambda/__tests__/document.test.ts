@@ -32,8 +32,25 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/business/server/document-mention/notifyActivity', () => ({
   notifyDocumentMention: mocks.notifyDocumentMention,
 }));
+const mockRbacInstance = {
+  hasAllPermissions: vi.fn().mockResolvedValue(true),
+  hasAnyPermission: vi.fn().mockResolvedValue(true),
+  hasPermission: vi.fn().mockResolvedValue(true),
+};
+const MockRbacModel = Object.assign(
+  vi.fn(function () {
+    return mockRbacInstance;
+  }),
+  {
+    getWorkspaceUsersPermissions: mocks.getWorkspaceUsersPermissions,
+  },
+);
+
+vi.mock('@lobechat/database/models/rbac', () => ({
+  RbacModel: MockRbacModel,
+}));
 vi.mock('@/database/models/rbac', () => ({
-  RbacModel: { getWorkspaceUsersPermissions: mocks.getWorkspaceUsersPermissions },
+  RbacModel: MockRbacModel,
 }));
 vi.mock('@/server/utils/scheduleAfterResponse', () => ({
   after: (work: () => Promise<unknown> | unknown) => work(),

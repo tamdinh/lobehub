@@ -32,6 +32,24 @@ import { KnowledgeType } from '@/types/knowledgeBase';
 import { agentRouter } from '../agent';
 
 vi.mock('@/server/services/resourceEvents', () => ({ publishResourceEvent: vi.fn() }));
+vi.mock('@lobechat/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: vi.fn().mockResolvedValue(true),
+      hasPermission: vi.fn().mockResolvedValue(true),
+    };
+  }),
+}));
+vi.mock('@/database/models/rbac', () => ({
+  RbacModel: vi.fn(function () {
+    return {
+      hasAllPermissions: vi.fn().mockResolvedValue(true),
+      hasAnyPermission: vi.fn().mockResolvedValue(true),
+      hasPermission: vi.fn().mockResolvedValue(true),
+    };
+  }),
+}));
 vi.mock('../_helpers/workspaceAgentGuard', () => ({
   getWorkspaceAgentParentGroupIds: vi.fn().mockResolvedValue([]),
 }));

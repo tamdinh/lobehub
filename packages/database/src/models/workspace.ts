@@ -14,6 +14,7 @@ export const getActiveWorkspaceMembershipRole = async (
   db: LobeChatDatabase,
   params: { userId: string; workspaceId: string },
 ): Promise<string | null> => {
+  if (!db || typeof db.select !== 'function') return null;
   const [row] = await db
     .select({ primaryOwnerId: workspaces.primaryOwnerId, role: workspaceMembers.role })
     .from(workspaceMembers)

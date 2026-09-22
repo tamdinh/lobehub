@@ -76,6 +76,7 @@ describe('tools marketRouter', () => {
       serverDB: {},
       userId: 'user-1',
       workspaceId: 'workspace-1',
+      workspaceRole: 'member',
     } as any);
     mockPreprocessLhCommand.mockResolvedValue({
       command:

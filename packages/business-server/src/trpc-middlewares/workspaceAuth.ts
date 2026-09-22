@@ -51,11 +51,14 @@ export const requireWorkspaceRole = (minRole: WorkspaceRole) =>
       throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
     }
 
-    const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
-    const role = (await getActiveWorkspaceMembershipRole(db, {
-      userId: ctx.userId,
-      workspaceId: ctx.workspaceId,
-    })) as WorkspaceRole | null;
+    let role = (ctx as any).workspaceRole as WorkspaceRole | null;
+    if (!role) {
+      const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
+      role = (await getActiveWorkspaceMembershipRole(db, {
+        userId: ctx.userId,
+        workspaceId: ctx.workspaceId,
+      })) as WorkspaceRole | null;
+    }
 
     if (!role) {
       throw new TRPCError({
@@ -91,11 +94,14 @@ export const requireWorkspaceRoleWhenScoped = (minRole: WorkspaceRole) =>
       throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
     }
 
-    const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
-    const role = (await getActiveWorkspaceMembershipRole(db, {
-      userId: ctx.userId,
-      workspaceId: ctx.workspaceId,
-    })) as WorkspaceRole | null;
+    let role = (ctx as any).workspaceRole as WorkspaceRole | null;
+    if (!role) {
+      const db: LobeChatDatabase = (ctx as any).serverDB || (await getServerDB());
+      role = (await getActiveWorkspaceMembershipRole(db, {
+        userId: ctx.userId,
+        workspaceId: ctx.workspaceId,
+      })) as WorkspaceRole | null;
+    }
 
     if (!role) {
       throw new TRPCError({

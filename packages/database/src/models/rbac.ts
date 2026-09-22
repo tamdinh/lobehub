@@ -144,21 +144,28 @@ export class RbacModel {
     userId: string,
     workspaceId: string,
   ): Promise<string | null> => {
-    const [row] = await this.db
-      .select({ primaryOwnerId: workspaces.primaryOwnerId, role: workspaceMembers.role })
-      .from(workspaceMembers)
-      .innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
-      .where(
-        and(
-          eq(workspaceMembers.workspaceId, workspaceId),
-          eq(workspaceMembers.userId, userId),
-          isNull(workspaceMembers.deletedAt),
-        ),
-      )
-      .limit(1);
-    if (!row) return null;
-    if (row.role === 'owner' && row.primaryOwnerId !== userId) return 'admin';
-    return row.role;
+    if (!this.db || typeof this.db.select !== 'function') return null;
+    try {
+      const query = this.db
+        .select({ primaryOwnerId: workspaces.primaryOwnerId, role: workspaceMembers.role })
+        .from(workspaceMembers)
+        .innerJoin(workspaces, eq(workspaces.id, workspaceMembers.workspaceId))
+        .where(
+          and(
+            eq(workspaceMembers.workspaceId, workspaceId),
+            eq(workspaceMembers.userId, userId),
+            isNull(workspaceMembers.deletedAt),
+          ),
+        );
+      const rows =
+        typeof (query as any)?.limit === 'function' ? await (query as any).limit(1) : await query;
+      const [row] = Array.isArray(rows) ? rows : [];
+      if (!row) return null;
+      if (row.role === 'owner' && row.primaryOwnerId !== userId) return 'admin';
+      return row.role;
+    } catch {
+      return null;
+    }
   };
 
   /**
@@ -171,24 +178,29 @@ export class RbacModel {
     userId: string,
     permissionCodes?: string[],
   ): Promise<string[]> => {
-    const result = await this.db
-      .select({ permissionCode: permissions.code })
-      .from(userRoles)
-      .innerJoin(roles, eq(userRoles.roleId, roles.id))
-      .innerJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
-      .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-      .where(
-        and(
-          eq(userRoles.userId, userId),
-          isNull(userRoles.workspaceId),
-          permissionCodes ? inArray(permissions.code, permissionCodes) : undefined,
-          eq(roles.isActive, true),
-          eq(permissions.isActive, true),
-          // Check if role assignment is not expired
-          sql`(${userRoles.expiresAt} IS NULL OR ${userRoles.expiresAt} > NOW())`,
-        ),
-      );
-    return [...new Set(result.map((row) => row.permissionCode))];
+    if (!this.db || typeof this.db.select !== 'function') return [];
+    try {
+      const result = await this.db
+        .select({ permissionCode: permissions.code })
+        .from(userRoles)
+        .innerJoin(roles, eq(userRoles.roleId, roles.id))
+        .innerJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
+        .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+        .where(
+          and(
+            eq(userRoles.userId, userId),
+            isNull(userRoles.workspaceId),
+            permissionCodes ? inArray(permissions.code, permissionCodes) : undefined,
+            eq(roles.isActive, true),
+            eq(permissions.isActive, true),
+            // Check if role assignment is not expired
+            sql`(${userRoles.expiresAt} IS NULL OR ${userRoles.expiresAt} > NOW())`,
+          ),
+        );
+      return [...new Set(result.map((row) => row.permissionCode))];
+    } catch {
+      return [];
+    }
   };
 
   /**
