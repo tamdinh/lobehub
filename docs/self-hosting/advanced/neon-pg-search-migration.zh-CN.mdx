@@ -13,7 +13,7 @@ tags:
 
 根据 [Neon 的 `pg_search` 公告](https://neon.com/docs/extensions/pg_search)，Neon 已停止为新项目提供该扩展。如果 Neon 通知你的现有项目也将停用 `pg_search`，请在通知中的截止日期前完成迁移；不同项目的时间可能不同，请以 Neon 发给你的通知为准。迁移只更换搜索后端，聊天记录等原始数据仍保存在原来的 PostgreSQL 数据库中。
 
-本文面向已经运行 LobeHub、并且已经完成历史数据库迁移的现有实例。新建数据库请先阅读[全文搜索](/zh/docs/self-hosting/advanced/full-text-search)中的数据库限制。
+LobeHub 会自动检测 Neon 以及未提供 `pg_search` 的环境，在部署迁移期间安全跳过 `pg_search` 扩展创建和 BM25 索引迁移，使 Neon 上的新建与已有数据库均可顺畅部署。
 
 ## 1. 确认是否需要迁移
 

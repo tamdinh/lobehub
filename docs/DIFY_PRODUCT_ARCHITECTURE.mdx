@@ -1,0 +1,1468 @@
+---
+title: Dify Product Architecture
+description: Strategic architecture guide for building a consumer AI SaaS product with Dify as the AI platform core and LobeHub-style product UX.
+tags:
+  - Architecture
+  - Dify
+  - LobeHub
+  - SaaS
+  - Adapter
+---
+
+# Dify Product Architecture
+
+## 1. Purpose
+
+Build the consumer AI SaaS product on top of the **Dify codebase as the AI platform core**, while using a **LobeHub-like product UX**.
+
+Core decision:
+
+- **Dify = AI platform / execution engine**
+- **Product Layer = consumer SaaS product / UX / monetization**
+- **Dify Adapter = integration boundary**
+
+Do not merge Dify and LobeHub into one codebase. Use LobeHub as an architectural and UX reference.
+
+---
+
+## 2. Strategic Architecture
+
+```text
+                 PRODUCT EXPERIENCE
+              Web + Mobile + Explore
+              Chat + Agents + Activity
+                        |
+                   Product API
+                        |
+                  Dify Adapter
+                        |
+                 DIFY AI PLATFORM
+                        |
+        +----------------+----------------+
+        |                |                |
+      Agent           Workflow         Knowledge
+        |                |                |
+      Tools            Runtime           RAG
+        |                |                |
+      Plugins          Providers       Documents
+```
+
+### Product Layer Owns
+
+- Consumer UX
+- Web/mobile
+- Explore/catalog
+- Billing
+- Plans
+- Subscriptions
+- Entitlements
+- Usage/quota
+- Product analytics
+- Support
+- Moderation
+- Notifications
+- Product administration
+
+### Dify Owns
+
+- Accounts/workspaces
+- Membership/RBAC
+- Apps
+- Agents
+- Workflows
+- Workflow versions
+- Knowledge/RAG
+- Documents/segments
+- Providers
+- Credentials
+- Tools
+- Plugins
+- Runtime
+- Execution
+- Technical logs
+
+---
+
+## 3. Architectural Principles
+
+### P1 — One Source of Truth
+
+Do not duplicate Dify domain objects in Product DB.
+
+**Dify remains authoritative for:**
+
+- Apps
+- Agents
+- Workflows
+- Workflow versions
+- Knowledge bases
+- Documents
+- Segments
+- Providers
+- Credentials
+- Plugins
+- Tools
+- Executions
+- Runtime state
+- Dify workspaces
+- Dify membership/RBAC
+
+**Product DB remains authoritative for:**
+
+- Product users
+- Plans
+- Subscriptions
+- Entitlements
+- Billing
+- Usage/quota
+- Product catalog
+- Analytics
+- Support
+- Moderation
+- Notifications
+
+### P2 — Product Code Must Not Depend Directly on Dify Internals
+
+**Bad:**
+
+```text
+Product UI -> Dify SQLAlchemy models
+Product UI -> Dify internal services
+```
+
+**Preferred:**
+
+```text
+Product UI
+   -> Product API
+      -> Dify Adapter
+         -> Dify API / controlled integration
+```
+
+### P3 — Keep Dify Replaceable
+
+Product concepts should not expose Dify implementation details everywhere.
+
+For example:
+
+- `ProductAgent`
+- `ProductWorkflow`
+- `ProductKnowledgeBase`
+- `ProductTool`
+- `ProductProvider`
+
+map internally to Dify objects.
+
+### P4 — Prefer WRAP over FORK
+
+**Priority order:**
+
+1. Product Layer
+2. Existing Dify APIs
+3. Dify plugin/extension
+4. Adapter integration
+5. Minimal Dify fork
+6. Replacement only when unavoidable
+
+### P5 — Product UX is Independent from Dify Console
+
+**Initial:**
+
+- `app.example.com` → Product UX
+- `studio.example.com` → Dify Console
+- `admin.example.com` → Product Admin
+
+Long-term, Dify Console is primarily an advanced/internal configuration surface.
+
+---
+
+## 4. Repository Architecture
+
+Recommended structure:
+
+```text
+/
+├── apps/
+│   ├── web/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── features/
+│   │   ├── hooks/
+│   │   ├── services/
+│   │   └── stores/
+│   │
+│   ├── mobile/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── features/
+│   │   ├── services/
+│   │   └── stores/
+│   │
+│   ├── api/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── middleware/
+│   │   └── modules/
+│   │
+│   └── admin/
+│       ├── app/
+│       ├── features/
+│       └── services/
+│
+├── packages/
+│   ├── product-types/
+│   ├── product-ui/
+│   ├── product-config/
+│   ├── product-auth/
+│   ├── product-billing/
+│   ├── product-analytics/
+│   ├── product-catalog/
+│   ├── dify-adapter/
+│   └── dify-contracts/
+│
+├── services/
+│   ├── billing/
+│   ├── usage/
+│   ├── notifications/
+│   └── analytics/
+│
+└── vendor/
+    └── dify/
+```
+
+If Dify remains the main repository:
+
+```text
+dify/
+product/
+```
+
+with the same logical boundaries.
+
+---
+
+## 5. Product API
+
+Product API owns all consumer-facing contracts.
+
+**Responsibilities:**
+
+- Product authentication/session
+- User profile
+- Onboarding
+- Subscription
+- Entitlement
+- Quota
+- Product catalog
+- Explore
+- Favorites
+- Usage
+- Analytics
+- Notifications
+- Support
+- Moderation
+- Dify orchestration through the adapter
+
+**It should NOT implement:**
+
+- Workflow execution engine
+- RAG engine
+- Agent reasoning engine
+- Model execution
+- Plugin execution
+
+---
+
+## 6. Product Database
+
+Keep Product DB deliberately thin.
+
+Recommended initial schema:
+
+```text
+users
+-----
+id (PK)
+dify_account_id
+email
+display_name
+avatar_url
+status
+created_at
+updated_at
+
+workspaces
+----------
+id (PK)
+dify_tenant_id
+owner_user_id
+created_at
+updated_at
+
+plans
+-----
+id (PK)
+code
+name
+description
+billing_interval
+price
+currency
+active
+created_at
+updated_at
+
+subscriptions
+-------------
+id (PK)
+user_id
+workspace_id
+plan_id
+provider
+provider_subscription_id
+status
+current_period_start
+current_period_end
+created_at
+updated_at
+
+entitlements
+------------
+id (PK)
+plan_id
+feature
+value
+created_at
+updated_at
+
+usage
+-----
+id (PK)
+user_id
+workspace_id
+metric
+period_start
+period_end
+value
+updated_at
+
+product_catalog
+---------------
+id (PK)
+type
+title
+description
+dify_app_id
+dify_tenant_id
+visibility
+featured
+sort_order
+created_at
+updated_at
+
+payments
+--------
+id (PK)
+user_id
+provider
+provider_payment_id
+amount
+currency
+status
+created_at
+
+analytics_events
+----------------
+id (PK)
+user_id
+workspace_id
+event
+properties_json
+created_at
+```
+
+**Do NOT duplicate:**
+
+- Dify App
+- Workflow graph
+- Dataset
+- Document
+- Segment
+- Credential
+- Plugin
+- Execution records
+
+---
+
+## 7. Product Catalog
+
+Catalog entries reference Dify objects.
+
+Example:
+
+```text
+product_catalog
+----------------
+id = "ai-email-writer"
+type = "agent"
+dify_app_id = "abc123"
+visibility = "public"
+```
+
+The Product Layer owns presentation/curation. Dify owns the actual application.
+
+```text
+Explore item
+    |
+    +-- Product metadata
+    |
+    +-- dify_app_id
+              |
+              v
+          Dify App
+```
+
+---
+
+## 8. Dify Adapter
+
+Recommended structure:
+
+```text
+packages/dify-adapter/
+├── client/
+│   ├── http-client
+│   ├── auth-client
+│   └── error-mapper
+│
+├── identity/
+│   ├── accounts
+│   ├── workspaces
+│   └── members
+│
+├── apps/
+│   ├── list
+│   ├── get
+│   ├── create
+│   ├── update
+│   ├── delete
+│   └── copy
+│
+├── agents/
+│   ├── list
+│   ├── get
+│   ├── create
+│   ├── update
+│   └── run
+│
+├── workflows/
+│   ├── get
+│   ├── draft
+│   ├── publish
+│   ├── run
+│   └── logs
+│
+├── knowledge/
+│   ├── datasets
+│   ├── documents
+│   ├── segments
+│   └── retrieval
+│
+├── providers/
+│   ├── list
+│   ├── credentials
+│   └── validation
+│
+├── tools/
+│   ├── list
+│   └── invoke
+│
+├── plugins/
+│   ├── list
+│   ├── install
+│   └── uninstall
+│
+└── runtime/
+    ├── stream
+    ├── execution
+    └── events
+```
+
+---
+
+## 9. Adapter Interfaces
+
+### App Repository
+
+```typescript
+interface DifyAppRepository {
+  list(input: ListAppsInput): Promise<ProductApp[]>;
+  get(id: string): Promise<ProductApp | null>;
+  create(input: CreateAppInput): Promise<ProductApp>;
+  update(id: string, input: UpdateAppInput): Promise<ProductApp>;
+  delete(id: string): Promise<void>;
+  copy(id: string, input: CopyAppInput): Promise<ProductApp>;
+}
+```
+
+### Agent Service
+
+```typescript
+interface DifyAgentService {
+  get(id: string): Promise<ProductAgent>;
+  list(input: ListAgentsInput): Promise<ProductAgent[]>;
+  create(input: CreateAgentInput): Promise<ProductAgent>;
+  update(id: string, input: UpdateAgentInput): Promise<ProductAgent>;
+  run(input: RunAgentInput): AsyncIterable<AgentEvent>;
+}
+```
+
+### Workflow Service
+
+```typescript
+interface DifyWorkflowService {
+  get(id: string): Promise<ProductWorkflow>;
+  publish(id: string): Promise<PublishedWorkflow>;
+  run(input: RunWorkflowInput): AsyncIterable<WorkflowEvent>;
+  getLogs(input: WorkflowLogQuery): Promise<WorkflowLog[]>;
+}
+```
+
+### Knowledge Service
+
+```typescript
+interface DifyKnowledgeService {
+  listDatasets(): Promise<KnowledgeBase[]>;
+  createDataset(input: CreateDatasetInput): Promise<KnowledgeBase>;
+  uploadDocument(input: UploadDocumentInput): Promise<Document>;
+  query(input: RetrievalQuery): Promise<RetrievalResult[]>;
+}
+```
+
+---
+
+## 10. Authentication
+
+Dify already provides:
+
+- Accounts
+- Sessions
+- Workspaces
+- Membership
+- Roles
+- Invitations
+- Permissions
+
+Therefore do not maintain Clerk as a second identity system unless a concrete requirement exists.
+
+**Mapping:**
+
+```text
+Product User
+    |
+    +-- dify_account_id
+
+Product Workspace
+    |
+    +-- dify_tenant_id
+```
+
+Do not inject a Clerk session into Dify Console.
+
+For the initial architecture:
+
+```text
+Public Product
+    |
+    v
+Product API
+    |
+    v
+Dify API
+```
+
+Dify Console can remain separately authenticated during migration.
+
+---
+
+## 11. Dify API Surfaces
+
+Dify has two important API concepts:
+
+### Public Service API (`/v1/...`)
+
+Used for published application execution:
+
+- Chat
+- Completion
+- Workflow execution
+- Published app execution
+
+*Do not use this as the product identity API.*
+
+### Console API (`/console/api/...`)
+
+Used for:
+
+- Applications
+- Workflows
+- Datasets
+- Providers
+- Plugins
+- Members
+- Configuration
+- Workspace management
+
+The Product Adapter should encapsulate these details.
+
+---
+
+## 12. Billing and Entitlements
+
+Billing is the Product Layer's responsibility.
+
+**Execution flow:**
+
+```text
+POST /api/agents/:id/run
+
+1. Authenticate user
+2. Resolve workspace
+3. Verify subscription
+4. Verify entitlement
+5. Verify quota
+6. Invoke Dify
+7. Stream response
+8. Record product usage
+```
+
+- Dify executes the request.
+- Product decides whether the user is entitled to execute it.
+
+---
+
+## 13. Usage
+
+Product usage should use product-level metrics:
+
+- `agent_runs`
+- `workflow_runs`
+- `messages`
+- `documents`
+- `storage_bytes`
+- `tool_calls`
+- `monthly_ai_usage`
+
+Dify remains authoritative for technical execution details. Product remains authoritative for billing/quota decisions.
+
+**Use correlation IDs:**
+
+```text
+product_request_id
+        |
+        v
+dify_execution_id
+```
+
+---
+
+## 14. Agent UX
+
+Public product should expose **Agent** rather than exposing Dify's internal App terminology.
+
+Example:
+
+```text
+ProductAgent
+    |
+    +-- id
+    +-- name
+    +-- avatar
+    +-- description
+    +-- capabilities
+    +-- dify_app_id
+```
+
+Dify App is the underlying implementation.
+
+---
+
+## 15. Workflow UX
+
+Workflows should be an advanced capability.
+
+**Recommended product navigation:**
+
+- Agents
+- Workflows
+- Knowledge
+- Tools
+- Explore
+
+Normal users should not be forced to understand:
+
+- Nodes
+- Graph variables
+- Providers
+- Plugin daemon
+- Runtime backends
+
+Expose these in advanced configuration.
+
+---
+
+## 16. Knowledge UX
+
+**Public UX:**
+
+```text
+Knowledge
+ |
+ +-- My Knowledge
+ +-- Upload
+ +-- Sources
+ +-- Search
+ +-- Permissions
+```
+
+**Backend:**
+
+```text
+Product API
+   |
+Dify Adapter
+   |
+Dify Knowledge
+   |
+Vector store / retrieval / reranker
+```
+
+Do not implement a second RAG system.
+
+---
+
+## 17. MCP / Tools
+
+Dify remains the execution authority.
+
+Product UX can expose:
+
+- Tools
+- MCP
+- Connected Apps
+
+Actual registration and invocation should map to Dify's tool/MCP/plugin system where possible.
+
+Product stores only product metadata such as:
+
+- `featured`
+- `display_name`
+- `category`
+- `visibility`
+
+---
+
+## 18. Plugins
+
+Dify Plugin Daemon remains the plugin runtime boundary:
+
+```text
+Product
+   |
+Dify Adapter
+   |
+Dify API
+   |
+Plugin Daemon
+   |
+Plugin Runtime
+```
+
+- Do not create a second plugin sandbox.
+- Treat plugin-runtime scaling as a separate infrastructure concern.
+
+---
+
+## 19. Admin Architecture
+
+### Product Admin (`admin.example.com`)
+
+Owns:
+
+- Users
+- Subscriptions
+- Plans
+- Entitlements
+- Payments
+- Product catalog
+- Featured agents
+- Moderation
+- Support
+- Analytics
+- Product configuration
+
+### Dify Administration (`studio.example.com`)
+
+Owns:
+
+- Workspaces
+- Members
+- RBAC
+- Providers
+- Credentials
+- Plugins
+- Tools
+- Datasets
+- Workflows
+- Advanced application configuration
+
+Do not recreate all Dify administration.
+
+---
+
+## 20. Deployment Topology
+
+### Initial Topology
+
+```text
+                    Internet
+                       |
+             +---------+---------+
+             |                   |
+             v                   v
+       app.example.com    studio.example.com
+             |                   |
+       Product Web          Dify Console
+             |                   |
+             v                   v
+        Product API  ---->  Dify API
+                              |
+              +---------------+---------------+
+              |       |       |       |       |
+           Worker   Redis   Postgres  Vector  Plugin
+```
+
+### Long-Term Topology
+
+```text
+app.example.com
+       |
+       v
+Product Web
+       |
+       v
+Product API
+       |
+       v
+Dify Adapter
+       |
+       v
+Private Dify Platform
+```
+
+---
+
+## 21. Dify Module Disposition
+
+### KEEP
+
+Keep essentially intact:
+
+- Agent
+- Workflow
+- Knowledge
+- Dataset
+- Document
+- RAG
+- Model Provider
+- Tool
+- Plugin
+- Runtime
+- Execution
+- Workspace
+- RBAC
+- Credential
+- Integration
+- Logging
+
+### WRAP
+
+Wrap through Product Adapter:
+
+- App API
+- Agent API
+- Workflow API
+- Knowledge API
+- Provider API
+- Plugin API
+- Tool API
+- Execution API
+- Workspace API
+
+### FORK
+
+Fork only when Product Layer, adapter, plugin, or configuration cannot satisfy the requirement.
+
+Potential areas:
+
+- Authentication integration
+- Product-specific API endpoints
+- Specific runtime hooks
+- Required platform integration
+
+*Document every fork.*
+
+### REPLACE
+
+Replace only where Dify fundamentally conflicts with product requirements.
+
+Typical replacements belong in Product Layer:
+
+- Consumer UI
+- Billing UI
+- Product analytics
+- Product catalog
+- Mobile UI
+- Product admin
+
+---
+
+## 22. Frontend Architecture
+
+Use a LobeHub-inspired flow:
+
+```text
+Component
+   |
+Feature Hook
+   |
+Product Store
+   |
+Service Layer
+   |
+Product API
+```
+
+**Never:**
+
+```text
+React Component
+   |
+   +--> Dify API directly
+```
+
+**Preferred:**
+
+```text
+React Component
+   |
+Product Hook
+   |
+Product Service
+   |
+Product API
+   |
+Dify Adapter
+```
+
+This allows web and mobile to share backend contracts.
+
+---
+
+## 23. Mobile Architecture
+
+Mobile must not call Dify Console APIs directly.
+
+```text
+Mobile
+  |
+Product API
+  |
+Dify Adapter
+  |
+Dify
+```
+
+Shared packages:
+
+- `product-types`
+- `product-config`
+- `product-auth`
+- `product-billing`
+- `dify-contracts`
+
+---
+
+## 24. Product API Examples
+
+```http
+GET    /api/me
+
+GET    /api/agents
+GET    /api/agents/:id
+POST   /api/agents
+POST   /api/agents/:id/run
+
+GET    /api/workflows
+POST   /api/workflows/:id/run
+
+GET    /api/knowledge
+POST   /api/knowledge
+POST   /api/knowledge/:id/documents
+
+GET    /api/explore
+GET    /api/explore/:id
+POST   /api/explore/:id/use
+
+GET    /api/subscription
+GET    /api/entitlements
+GET    /api/usage
+```
+
+The frontend should not know whether an Agent is implemented by Dify or another future backend.
+
+---
+
+## 25. Error Mapping
+
+Translate Dify errors into stable Product errors.
+
+| Dify Error              | Product Error            |
+| :---------------------- | :----------------------- |
+| `ProviderQuotaExceeded` | `AI_USAGE_LIMIT_REACHED` |
+| `AppNotFound`           | `AGENT_NOT_FOUND`        |
+| `PermissionDenied`      | `ACCESS_DENIED`          |
+
+Never expose raw Dify internal exceptions to consumers.
+
+---
+
+## 26. Observability
+
+**Product layer tracks:**
+
+- `user`
+- `workspace`
+- `plan`
+- `feature`
+- `request`
+- `latency`
+- `subscription`
+- `quota`
+- `product event`
+
+**Dify tracks:**
+
+- `application`
+- `workflow`
+- `node`
+- `model`
+- `provider`
+- `tool`
+- `plugin`
+- `execution`
+- `tokens`
+- `errors`
+- `runtime`
+
+**Correlation:**
+
+```text
+product_request_id
+        |
+        v
+dify_execution_id
+```
+
+---
+
+## 27. Caching
+
+**Reasonable candidates:**
+
+- Explore catalog
+- Agent metadata
+- Provider metadata
+- Tool metadata
+- Public templates
+
+**Avoid caching mutable technical state without an explicit consistency strategy:**
+
+- Workflow execution
+- Credentials
+- Runtime state
+- Knowledge indexing status
+
+---
+
+## 28. Upstream Strategy
+
+Keep Dify close to upstream:
+
+```text
+upstream/dify
+       |
+       +---- product integration
+       |
+       +---- minimal patches
+```
+
+Classify modifications as:
+
+- `PRODUCT`
+- `UPSTREAM`
+- `INTEGRATION`
+- `LOCAL-INFRA`
+
+**Goal:**
+
+```text
+Dify update
+   |
+   v
+merge/rebase
+   |
+   v
+minimal conflict resolution
+   |
+   v
+product tests
+```
+
+Avoid a heavily divergent Dify fork.
+
+---
+
+## 29. Upgrade Policy
+
+Before each Dify upgrade:
+
+1. Read release notes.
+2. Review database migrations.
+3. Review API changes.
+4. Review Plugin Daemon compatibility.
+5. Review Agent runtime changes.
+6. Run adapter contract tests.
+7. Run Product integration tests.
+8. Run critical workflow tests.
+9. Run web/mobile smoke tests.
+10. Deploy staging.
+11. Observe before production rollout.
+
+Maintain `DIFY_VERSION` in product configuration.
+
+---
+
+## 30. Contract Testing
+
+Test the adapter rather than Dify internals.
+
+**Recommended contracts:**
+
+- `DifyAppRepositoryContract`
+- `DifyAgentServiceContract`
+- `DifyWorkflowServiceContract`
+- `DifyKnowledgeServiceContract`
+- `DifyProviderServiceContract`
+
+**Verify:**
+
+- `create`
+- `read`
+- `update`
+- `delete`
+- `copy`
+- `run`
+- `stream`
+- `error mapping`
+- `permission mapping`
+
+---
+
+## 31. Migration Plan
+
+### Phase 0 — Product Concepts
+
+Define core models:
+
+- User, Workspace, Agent, Conversation, Workflow, Knowledge, Tool
+- Subscription, Plan, Entitlement, Usage, ExploreItem
+
+*(Do not expose Dify classes to UI code.)*
+
+### Phase 1 — Adapter
+
+Create `packages/dify-adapter` and implement:
+
+- accounts, workspaces, apps, agents, workflows, knowledge
+
+### Phase 2 — Product API
+
+Move frontend Dify communication behind `/api/*`.
+
+### Phase 3 — Authentication
+
+Establish mappings:
+
+- `Product User -> Dify Account`
+- `Product Workspace -> Dify Tenant`
+
+### Phase 4 — Billing
+
+Implement:
+
+- Plan, Subscription, Entitlement, Usage, and entitlement middleware.
+
+### Phase 5 — Explore
+
+Implement:
+
+- Catalog, Featured, Categories, Search, "Use this Agent".
+
+### Phase 6 — Consumer Chat
+
+Build:
+
+- Home, Agents, Chat, Explore, Activity, Profile using Dify execution.
+
+### Phase 7 — Knowledge
+
+Expose simplified knowledge UX.
+
+### Phase 8 — Advanced Workflow
+
+Initially expose Dify workflow authoring at `studio.example.com`.
+
+### Phase 9 — Mobile
+
+Build mobile against Product API.
+
+### Phase 10 — Product Admin
+
+Implement:
+
+- Users, Subscriptions, Plans, Entitlements, Catalog, Analytics, Support, Moderation.
+
+---
+
+## 32. Coding-Agent Implementation Order
+
+- **Task 1:** Create `packages/dify-adapter`, `packages/product-types`, `packages/product-config`.
+- **Task 2:** Implement `DifyHttpClient`, `DifyAuthClient`, `DifyErrorMapper`.
+- **Task 3:** Implement App adapter (`list`, `get`, `create`, `update`, `delete`, `copy`).
+- **Task 4:** Implement Agent adapter (`list`, `get`, `create`, `update`, `run`, `stream`).
+- **Task 5:** Implement Workflow adapter (`get`, `publish`, `run`, `stream`, `logs`).
+- **Task 6:** Implement Knowledge adapter (`datasets`, `documents`, `retrieval`).
+- **Task 7:** Expose stable Product API contracts.
+- **Task 8:** Implement authentication and account/workspace mapping.
+- **Task 9:** Implement billing (`Plan`, `Subscription`, `Entitlement`, `Usage`).
+- **Task 10:** Implement Explore/catalog.
+- **Task 11:** Replace consumer-facing Dify UX with LobeHub-style product UX.
+- **Task 12:** Connect mobile to Product API.
+- **Task 13:** Build Product Admin.
+- **Task 14:** Remove unnecessary Clerk dependency after identity mapping is stable.
+
+---
+
+## 33. Things to Avoid
+
+- **Do not create:** `Dify Agent Runtime` + `Custom Agent Runtime` unless required.
+- **Do not create:** `Dify Knowledge` + `Second RAG system` for the same domain.
+- **Do not duplicate:** `Product workflow_json` + `Dify workflow graph`.
+- **Do not store:** Provider secrets in Product DB.
+- **Do not make:** Product UI depend on Dify internals.
+- **Do not use:** Dify iframe as the permanent consumer UX.
+
+---
+
+## 34. Security Model
+
+**Product Layer enforces:**
+
+- Authentication
+- Authorization
+- Subscription
+- Entitlement
+- Quota
+- Tenant isolation
+
+**Dify enforces:**
+
+- Workspace authorization
+- Resource permissions
+- Provider credentials
+- Tool/plugin permissions
+- Execution permissions
+
+Both layers are security boundaries. Never assume: `Product permission == Dify permission`.
+
+---
+
+## 35. Tenant Mapping
+
+Use explicit server-side mappings:
+
+```text
+Product User
+    |
+    +--> Dify Account
+
+Product Workspace
+    |
+    +--> Dify Tenant
+```
+
+Never trust a client-provided Dify tenant ID for authorization.
+
+---
+
+## 36. Data Ownership Matrix
+
+| Domain               | Product              | Dify                   |
+| :------------------- | :------------------- | :--------------------- |
+| User                 | Primary              | AI account             |
+| Workspace            | Mapping              | Primary                |
+| Membership           | Product context      | Primary                |
+| RBAC                 | Product access       | Primary                |
+| Agent metadata       | Product presentation | Primary implementation |
+| Agent config         | No                   | Primary                |
+| Workflow             | No                   | Primary                |
+| Workflow graph       | No                   | Primary                |
+| Knowledge            | No                   | Primary                |
+| Documents            | No                   | Primary                |
+| RAG                  | No                   | Primary                |
+| Provider credentials | No                   | Primary                |
+| Plugins              | Product metadata     | Primary                |
+| Tool runtime         | No                   | Primary                |
+| Subscription         | Primary              | No                     |
+| Billing              | Primary              | No                     |
+| Entitlement          | Primary              | No                     |
+| Usage for billing    | Primary              | Technical source       |
+| Execution logs       | Correlation          | Primary                |
+| Explore catalog      | Primary              | Optional source        |
+| Analytics            | Primary              | Technical telemetry    |
+| Support              | Primary              | No                     |
+
+---
+
+## 37. Dify vs LobeHub Architectural Reference
+
+### Dify: AI Application Platform
+
+```text
+App
+ |
+ +-- Agent
+ +-- Workflow
+ +-- Knowledge
+ +-- Tools
+ +-- Plugins
+ +-- Providers
+ +-- Runtime
+ +-- Logs
+```
+
+- **Primary characteristic:** Platform depth
+- **Tradeoff:** Higher complexity
+
+### LobeHub: Agent / Chat Product Platform
+
+```text
+Agent
+ |
+ +-- Conversation
+ +-- Runtime
+ +-- Tools/MCP
+ +-- Knowledge
+ +-- Work
+```
+
+- **Primary characteristic:** Product UX + frontend architecture
+- **Tradeoff:** Less depth in Dify-style visual workflow/platform infrastructure
+
+---
+
+## 38. Final Architecture
+
+```text
+                 YOUR PRODUCT
+        +---------------------------+
+        | Web                       |
+        | Mobile                    |
+        | Explore                   |
+        | Chat                      |
+        | Agents                    |
+        | Activity                  |
+        | Billing                   |
+        | Product Admin             |
+        +-------------+-------------+
+                      |
+                 Product API
+                      |
+        +-------------+-------------+
+        | Auth / Billing / Catalog  |
+        | Entitlements / Usage      |
+        | Analytics / Support       |
+        +-------------+-------------+
+                      |
+                 Dify Adapter
+                      |
+        +-------------+-------------+
+        |                           |
+        v                           v
+       Dify                    Product DB
+        |
+        +-- Apps
+        +-- Agents
+        +-- Workflows
+        +-- Knowledge
+        +-- Tools
+        +-- Plugins
+        +-- Providers
+        +-- Runtime
+        +-- Execution
+        +-- RBAC
+        +-- Logs
+```
+
+**Final Principle:**
+
+- **LobeHub** inspires the **PRODUCT EXPERIENCE**.
+- **Dify** provides the **AI PLATFORM**.
+- The **Product Adapter** keeps them **DECOUPLED**.
+
+---
+
+## 39. Definition of Done
+
+The architecture is established when:
+
+- [ ] Product UI does not call Dify APIs directly.
+- [ ] Product API owns consumer-facing contracts.
+- [ ] Dify Adapter is the only Product Layer integration boundary.
+- [ ] Product DB contains no duplicated Dify workflow/knowledge/provider state.
+- [ ] Product user maps to Dify account.
+- [ ] Product workspace maps to Dify tenant.
+- [ ] Subscription and entitlement checks happen before AI execution.
+- [ ] Agent execution works through Dify.
+- [ ] Workflow execution works through Dify.
+- [ ] Knowledge works through Dify.
+- [ ] Tools/MCP work through Dify where supported.
+- [ ] Explore entries reference Dify Apps rather than cloned definitions.
+- [ ] "Use this Agent" uses Dify application copy/import capability.
+- [ ] Product Admin is independent from Dify Console.
+- [ ] Mobile uses Product API.
+- [ ] Dify modifications are minimal and documented.
+- [ ] Adapter contract tests pass.
+- [ ] Dify upgrades can be tested without rewriting Product UX.
+
+---
+
+## 40. Version Baseline
+
+Architecture baseline at creation:
+
+- **Dify:** `1.17.1`
+- **LobeHub:** `2.2.x` line
+
+Verify the exact checked-out upstream version before implementation or upgrade. Exact endpoints, classes, and internal APIs must always be validated against the checked-out Dify repository.

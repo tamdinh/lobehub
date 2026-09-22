@@ -36,7 +36,7 @@ describe('getFtsSearchConfig', () => {
       FTS_SEARCH_SYNC_ENABLED: undefined,
       ES_INDEX_NAMESPACE: undefined,
       ES_URL: undefined,
-      FTS_SEARCH_PROVIDER: 'pg_search',
+      FTS_SEARCH_PROVIDER: 'pg_like',
     });
   });
 
@@ -44,6 +44,12 @@ describe('getFtsSearchConfig', () => {
     vi.stubEnv('FTS_SEARCH_PROVIDER', 'pg_like');
 
     expect(getFtsSearchConfig().FTS_SEARCH_PROVIDER).toBe('pg_like');
+  });
+
+  it('accepts the opt-in pg_search provider', () => {
+    vi.stubEnv('FTS_SEARCH_PROVIDER', 'pg_search');
+
+    expect(getFtsSearchConfig().FTS_SEARCH_PROVIDER).toBe('pg_search');
   });
 
   it('lets distributions override the default provider without overriding an explicit value', () => {

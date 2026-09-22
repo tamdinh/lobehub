@@ -5,7 +5,7 @@ import type {
   LobeAgentSession,
   LobeGroupSession,
 } from '@lobechat/types';
-import { and, asc, count, desc, eq, inArray, not, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, ilike, inArray, not, or, sql } from 'drizzle-orm';
 import type { PartialDeep } from 'type-fest';
 
 import { merge } from '@/utils/merge';
@@ -676,9 +676,33 @@ export class SessionModel {
               ?.session,
         )
         .filter((session) => session !== null && session !== undefined);
-    } catch (e) {
-      console.error('findSessionsByKeywords error:', e, { keyword });
-      return [];
+    } catch {
+      // If BM25 fails (e.g. pg_search extension not available), fall back to ILIKE matching
+      try {
+        const likePattern = `%${keyword}%`;
+        const results = await this.db.query.agents.findMany({
+          limit: pageSize,
+          offset,
+          orderBy: [asc(agents.id)],
+          where: and(
+            this.agentsOwnership(),
+            or(ilike(agents.title, likePattern), ilike(agents.description, likePattern)),
+          ),
+          with: { agentsToSessions: { columns: {}, with: { session: true } } },
+        });
+
+        return results
+          .filter((item) => item.agentsToSessions && item.agentsToSessions.length > 0)
+          .map(
+            (item) =>
+              (item.agentsToSessions as Array<{ session: SessionItem | null | undefined }>)[0]
+                ?.session,
+          )
+          .filter((session) => session !== null && session !== undefined);
+      } catch (fallbackError) {
+        console.error('findSessionsByKeywords error:', fallbackError, { keyword });
+        return [];
+      }
     }
   };
 }

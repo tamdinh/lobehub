@@ -2,11 +2,10 @@ import path from 'node:path';
 
 import * as dotenv from 'dotenv';
 import dotenvExpand from 'dotenv-expand';
-import { migrate as neonMigrate } from 'drizzle-orm/neon-serverless/migrator';
-import { migrate as nodeMigrate } from 'drizzle-orm/node-postgres/migrator';
 
 // @ts-ignore tsgo handle esm import cjs and compatibility issues
 import { DB_FAIL_INIT_HINT, DUPLICATE_EMAIL_HINT, PGVECTOR_HINT } from './errorHint';
+import { migrateDatabase } from './migrator';
 import { runWithLockRetry } from './retry';
 
 // Load environment variables in priority order:
@@ -26,11 +25,7 @@ const runMigrations = async () => {
 
   const time = Date.now();
   await runWithLockRetry(async () => {
-    if (process.env.DATABASE_DRIVER === 'node') {
-      await nodeMigrate(serverDB, { migrationsFolder });
-    } else {
-      await neonMigrate(serverDB, { migrationsFolder });
-    }
+    await migrateDatabase(serverDB, { migrationsFolder });
   });
 
   console.log('✅ database migration pass. use: %s ms', Date.now() - time);

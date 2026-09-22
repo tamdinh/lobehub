@@ -28,10 +28,9 @@ export const getElasticsearchFtsSearchConfig = () => {
 /**
  * Deployment-selected full-text search implementation.
  *
- * - `pg_search`: ParadeDB BM25 (self-host default).
- * - `elasticsearch`: managed Elasticsearch cluster.
- * - `pg_like`: extension-free PostgreSQL `ILIKE` matching for lightweight deployments;
- *   an explicit choice, never an implicit fallback for a missing extension.
+ * - `pg_like`: extension-free PostgreSQL `ILIKE` matching (default for self-host, serverless & dev).
+ * - `elasticsearch`: production search backend for larger datasets.
+ * - `pg_search`: ParadeDB BM25 for environments with pg_search extension (opt-in).
  */
 export const FTS_SEARCH_PROVIDER_VALUES = ['elasticsearch', 'pg_search', 'pg_like'] as const;
 
@@ -43,7 +42,7 @@ export interface FtsSearchConfigOptions {
 }
 
 export const getFtsSearchConfig = ({
-  defaultProvider = 'pg_search',
+  defaultProvider = 'pg_like',
 }: FtsSearchConfigOptions = {}) => {
   const providerConfig = createEnv({
     runtimeEnv: {

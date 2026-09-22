@@ -1,5 +1,5 @@
 import type { LobeChatDatabase } from '../../type';
-import { PgSearchFtsSearchBackend } from './pgSearch';
+import { PgLikeFtsSearchBackend } from './pgLike';
 import type {
   FtsSearchBackendFilters,
   FtsSearchBackendMeasurement,
@@ -61,8 +61,9 @@ export class FtsSearchRepo {
     options: FtsSearchRepoOptions = {},
   ) {
     this.scope = { callerAgentVisibility, userId, workspaceId };
-    this.backend = options.backend ?? new PgSearchFtsSearchBackend(db, this.scope);
-    this.ftsSearchCandidateEnabled = options.ftsSearchCandidateEnabled ?? false;
+    this.backend = options.backend ?? new PgLikeFtsSearchBackend(db, this.scope);
+    this.ftsSearchCandidateEnabled =
+      options.ftsSearchCandidateEnabled ?? (options.backend ? false : true);
     this.onMeasurement = options.onMeasurement;
   }
 
