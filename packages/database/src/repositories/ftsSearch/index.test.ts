@@ -22,7 +22,7 @@ import { topics } from '../../schemas/topic';
 import { users } from '../../schemas/user';
 import type { LobeChatDatabase } from '../../type';
 import type { FtsSearchResult } from './index';
-import { FtsSearchCandidateError, FtsSearchRepo } from './index';
+import { FtsSearchCandidateError, FtsSearchRepo, PgSearchFtsSearchBackend } from './index';
 
 const userId = 'search-test-user';
 const otherUserId = 'other-search-user';
@@ -1956,10 +1956,15 @@ describe.skipIf(!isServerDB)('FtsSearchRepo', () => {
         schema,
       });
 
+      const scope = { userId, workspaceId: options?.workspaceId };
       await new FtsSearchRepo(
         db as unknown as LobeChatDatabase,
         userId,
         options?.workspaceId,
+        undefined,
+        {
+          backend: new PgSearchFtsSearchBackend(db as unknown as LobeChatDatabase, scope),
+        },
       ).search({
         agentId: options?.agentId,
         query: 'kubernetes',
